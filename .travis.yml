@@ -35,7 +35,10 @@ matrix:
       env: BUILDTYPE=Release JOBS=8
       compiler: gcc
     - os: osx
-      env: BUILDTYPE=Debug JOBS=8
+      env: BUILDTYPE=Debug JOBS=8 TEST_OS=osx
+      compiler: clang
+    - os: osx
+      env: BUILDTYPE=Release JOBS=8 TEST_OS=ios
       compiler: clang
 
 env:

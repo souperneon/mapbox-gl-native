@@ -1,7 +1,10 @@
 #import "MapViewTests.h"
-#import <KIF/KIFTestStepValidation.h>
+
 #import "KIFTestActor+MapboxGL.h"
-#import "MGLMapView.h"
+
+#import "MapboxGL.h"
+
+#import <KIF/KIFTestStepValidation.h>
 
 @interface MapViewTests () <MGLMapViewDelegate>
 
@@ -91,8 +94,9 @@
                        distance:50
                           steps:10];
 
-    XCTAssertTrue(tester.mapView.zoomLevel > zoom,
-                  @"zoom gesture should increase zoom level");
+    XCTAssertGreaterThan(tester.mapView.zoomLevel,
+                         zoom,
+                         @"zoom gesture should increase zoom level");
 
     zoom = tester.mapView.zoomLevel;
     [tester.mapView pinchAtPoint:CGPointMake(tester.mapView.bounds.size.width / 2,
@@ -100,8 +104,9 @@
                         distance:50
                            steps:10];
 
-    XCTAssertTrue(tester.mapView.zoomLevel < zoom,
-                  @"pinch gesture should decrease zoom level");
+    XCTAssertLessThan(tester.mapView.zoomLevel,
+                      zoom,
+                      @"pinch gesture should decrease zoom level");
 }
 
 - (void)testZoomDisabled {
@@ -132,10 +137,12 @@
 
     [tester.mapView dragFromPoint:CGPointMake(10, 10) toPoint:CGPointMake(300, 300) steps:10];
 
-    XCTAssertTrue(tester.mapView.centerCoordinate.latitude > centerCoordinate.latitude,
-                  @"panning map down should increase center latitude");
-    XCTAssertTrue(tester.mapView.centerCoordinate.longitude < centerCoordinate.longitude,
-                  @"panning map right should decrease center longitude");
+    XCTAssertGreaterThan(tester.mapView.centerCoordinate.latitude,
+                         centerCoordinate.latitude,
+                         @"panning map down should increase center latitude");
+    XCTAssertLessThan(tester.mapView.centerCoordinate.longitude,
+                      centerCoordinate.longitude,
+                      @"panning map right should decrease center longitude");
 }
 
 - (void)testPanDisabled {
@@ -144,12 +151,45 @@
 
     [tester.mapView dragFromPoint:CGPointMake(10, 10) toPoint:CGPointMake(300, 300) steps:10];
 
-    __KIFAssertEqual(centerCoordinate.latitude,
-                     tester.mapView.centerCoordinate.latitude,
-                     @"disabling pan gesture should disallow vertical panning");
-    __KIFAssertEqual(centerCoordinate.longitude,
-                     tester.mapView.centerCoordinate.longitude,
-                     @"disabling pan gesture should disallow horizontal panning");
+    XCTAssertEqualWithAccuracy(centerCoordinate.latitude,
+                               tester.mapView.centerCoordinate.latitude,
+                               0.005,
+                               @"disabling pan gesture should disallow vertical panning");
+    XCTAssertEqualWithAccuracy(centerCoordinate.longitude,
+                               tester.mapView.centerCoordinate.longitude,
+                               0.005,
+                               @"disabling pan gesture should disallow horizontal panning");
+}
+
+- (void)testRotate {
+    CLLocationDirection startAngle = tester.mapView.direction;
+
+    XCTAssertNotEqual(startAngle,
+                      45,
+                      @"start angle must not be destination angle");
+
+    [tester.mapView twoFingerRotateAtPoint:tester.mapView.center angle:45];
+
+    XCTAssertGreaterThanOrEqual(fabs(tester.mapView.direction - startAngle),
+                                20,
+                                @"rotating map should change angle");
+}
+
+- (void)testRotateDisabled {
+    tester.mapView.rotateEnabled = NO;
+
+    CLLocationDirection startAngle = tester.mapView.direction;
+
+    XCTAssertNotEqual(startAngle,
+                      45,
+                      @"start angle must not be destination angle");
+
+    [tester.mapView twoFingerRotateAtPoint:tester.mapView.center angle:45];
+
+    XCTAssertEqualWithAccuracy(tester.mapView.direction,
+                               startAngle,
+                               0.005,
+                               @"disabling rotation show disallow rotation gestures");
 }
 
 - (void)testCenterSet {
@@ -161,12 +201,14 @@
                       newCenterCoordinate.longitude,
                       @"initial setup should have differing center longitude");
 
-    [tester.mapView setCenterCoordinate:newCenterCoordinate];
+    tester.mapView.centerCoordinate = newCenterCoordinate;
 
-    XCTAssertTrue(tester.mapView.centerCoordinate.latitude == newCenterCoordinate.latitude,
-                  @"setting center should change latitude");
-    XCTAssertTrue(tester.mapView.centerCoordinate.longitude == newCenterCoordinate.longitude,
-                  @"setting center should change longitude");
+    XCTAssertEqual(tester.mapView.centerCoordinate.latitude,
+                   newCenterCoordinate.latitude,
+                   @"setting center should change latitude");
+    XCTAssertEqual(tester.mapView.centerCoordinate.longitude,
+                   newCenterCoordinate.longitude,
+                   @"setting center should change longitude");
 }
 
 - (void)testZoomSet {
@@ -233,7 +275,7 @@
     logoBugFrame = [logoBug.superview convertRect:logoBug.frame toView:nil];
     toolbarFrame = [tester.window convertRect:toolbar.frame toView:nil];
     XCTAssertFalse(CGRectIntersectsRect(logoBugFrame, toolbarFrame),
-                   @"rotated device should not have logo buy under toolbar");
+                   @"rotated device should not have logo bug under toolbar");
 
     attributionButtonFrame = [attributionButton.superview convertRect:attributionButton.frame toView:nil];
     XCTAssertFalse(CGRectIntersectsRect(attributionButtonFrame, toolbarFrame),

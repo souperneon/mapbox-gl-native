@@ -28,6 +28,9 @@ styles/styles:
 SMCalloutView:
 	git submodule update --init platform/ios/vendor/SMCalloutView
 
+KIF:
+	git submodule update --init test/ios/KIF
+
 #### Library builds ############################################################
 
 .PRECIOUS: Makefile/mbgl
@@ -123,6 +126,10 @@ ios: Xcode/ios
 
 isim: Xcode/ios
 	xcodebuild -sdk iphonesimulator ARCHS="x86_64 i386" -project ./build/ios/ios/app/mapboxgl-app.xcodeproj -configuration Debug -target iosapp -jobs $(JOBS)
+
+itest: Xcode/ios KIF
+	./scripts/package_ios.sh
+	./scripts/test_ios.sh
 
 # Legacy name
 iproj: ios-proj
