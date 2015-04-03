@@ -219,9 +219,10 @@
 
     tester.mapView.zoomLevel = newZoom;
 
-    __KIFAssertEqual(tester.mapView.zoomLevel,
-                     newZoom,
-                     @"setting zoom should take effect");
+    XCTAssertEqualWithAccuracy(tester.mapView.zoomLevel,
+                               newZoom,
+                               0.01,
+                               @"setting zoom should take effect");
 }
 
 - (void)testTopLayoutGuide {
