@@ -13,16 +13,22 @@
 @implementation MapViewTests
 
 - (void)beforeEach {
+    [tester waitForTimeInterval:1];
+
     [system simulateDeviceRotationToOrientation:UIDeviceOrientationPortrait];
-    tester.mapView.viewControllerForLayoutGuides = tester.viewController;
+
     tester.mapView.centerCoordinate = CLLocationCoordinate2DMake(38.913175, -77.032458);
     tester.mapView.zoomLevel = 14;
     tester.mapView.direction = 0;
+
     tester.mapView.zoomEnabled = YES;
     tester.mapView.scrollEnabled = YES;
     tester.mapView.rotateEnabled = YES;
+
     tester.viewController.navigationController.navigationBarHidden = YES;
     tester.viewController.navigationController.toolbarHidden = YES;
+
+    tester.mapView.viewControllerForLayoutGuides = tester.viewController;
     tester.mapView.delegate = self;
 }
 
