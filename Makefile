@@ -127,8 +127,10 @@ ios: Xcode/ios
 isim: Xcode/ios
 	xcodebuild -sdk iphonesimulator ARCHS="x86_64 i386" -project ./build/ios/ios/app/mapboxgl-app.xcodeproj -configuration Debug -target iosapp -jobs $(JOBS)
 
-itest: Xcode/ios KIF
+ipackage: Xcode/ios
 	./scripts/package_ios.sh
+
+itest: ipackage KIF
 	./scripts/test_ios.sh
 
 # Legacy name
