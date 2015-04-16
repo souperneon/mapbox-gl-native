@@ -50,6 +50,7 @@
         'miscellaneous/rotation_range.cpp',
         'miscellaneous/style_parser.cpp',
         'miscellaneous/text_conversions.cpp',
+        'miscellaneous/thread.cpp',
         'miscellaneous/tile.cpp',
         'miscellaneous/variant.cpp',
 

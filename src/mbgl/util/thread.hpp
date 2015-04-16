@@ -43,18 +43,27 @@ public:
     // Invoke object->fn(args...) in the runloop thread.
     template <typename Fn, class... Args>
     void invoke(Fn fn, Args&&... args) {
-        loop->invoke(std::bind(fn, object, args...));
+        std::tuple<Args...> params = std::forward_as_tuple(::std::forward<Args>(args)...);
+        loop->invoke(std::bind([fn, this] (std::tuple<Args...>& params_) {
+            constexpr auto seq = typename integer_sequence<sizeof...(Args)>::type();
+            invoke(fn, std::move(params_), seq);
+        }, std::move(params)));
     }
 
     // Invoke object->fn(args...) in the runloop thread, then invoke callback(result) in the current thread.
-    template <typename Fn, class R, class... Args>
-    void invokeWithResult(Fn fn, std::function<void (R)> callback, Args&&... args) {
-        loop->invokeWithResult(std::bind(fn, object, args...), callback);
+    template <typename Fn, typename Callback, class... Args>
+    void invokeWithResult(Fn fn, Callback&& callback, Args&&... args) {
+        loop->invokeWithResult(std::bind(fn, object, std::move(args)...), callback);
     }
 
     uv_loop_t* get() { return loop->get(); }
 
 private:
+    template <typename Fn, typename P, std::size_t... I>
+    void invoke(Fn fn, P&& args, index_sequence<I...>) {
+        (object->*fn)(std::get<I>(std::forward<P>(args))...);
+    }
+
     Thread(const Thread&) = delete;
     Thread(Thread&&) = delete;
     Thread& operator=(const Thread&) = delete;

@@ -28,8 +28,10 @@ public:
     }
 
     // Invoke fn() in the runloop thread, then invoke callback(result) in the current thread.
-    template <class Fn, class R>
-    void invokeWithResult(Fn&& fn, std::function<void (R)> callback) {
+    template <class Fn, class Callback>
+    void invokeWithResult(Fn&& fn, Callback&& callback) {
+        using R = decltype(fn());
+
         RunLoop* outer = current.get();
         assert(outer);
 
