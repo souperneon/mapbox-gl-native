@@ -20,7 +20,6 @@
 #include <mbgl/geometry/glyph_atlas.hpp>
 #include <mbgl/style/style_layer.hpp>
 #include <mbgl/style/style_bucket.hpp>
-#include <mbgl/util/texture_pool.hpp>
 #include <mbgl/geometry/sprite_atlas.hpp>
 #include <mbgl/geometry/line_atlas.hpp>
 #include <mbgl/storage/file_source.hpp>
@@ -70,7 +69,6 @@ Map::Map(View& view_, FileSource& fileSource_)
       glyphStore(std::make_shared<GlyphStore>(*env)),
       spriteAtlas(util::make_unique<SpriteAtlas>(512, 512)),
       lineAtlas(util::make_unique<LineAtlas>(512, 512)),
-      texturePool(std::make_shared<TexturePool>()),
       painter(util::make_unique<Painter>(*spriteAtlas, *glyphAtlas, *lineAtlas)),
       annotationManager(util::make_unique<AnnotationManager>()),
       data(util::make_unique<MapData>()),
@@ -715,7 +713,7 @@ void Map::updateTiles() {
     assert(Environment::currentlyOn(ThreadType::Map));
 
     resourceLoader->update(*this, *glyphAtlas, *glyphStore,
-                           *spriteAtlas, getSprite(), *texturePool);
+                           *spriteAtlas, getSprite());
 }
 
 void Map::update() {

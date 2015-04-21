@@ -3,6 +3,7 @@
 #include <mbgl/map/environment.hpp>
 #include <mbgl/map/source.hpp>
 #include <mbgl/style/style.hpp>
+#include <mbgl/util/texture_pool.hpp>
 #include <mbgl/util/worker.hpp>
 
 #include <cassert>
@@ -16,7 +17,8 @@ const std::size_t threadPoolSize = 4;
 
 namespace mbgl {
 
-ResourceLoader::ResourceLoader() : observer_(nullptr) {
+ResourceLoader::ResourceLoader()
+    : texturePool_(util::make_unique<TexturePool>()), observer_(nullptr) {
     assert(Environment::currentlyOn(ThreadType::Map));
 
     // The worker pool will reply to the Map thread main loop,
@@ -53,15 +55,14 @@ void ResourceLoader::update(Map& map,
                            GlyphAtlas& glyphAtlas,
                            GlyphStore& glyphStore,
                            SpriteAtlas& spriteAtlas,
-                           util::ptr<Sprite> sprite,
-                           TexturePool& texturePool) {
+                           util::ptr<Sprite> sprite) {
     if (!style_) {
         return;
     }
 
     for (const auto& source : style_->sources) {
         source->update(
-            map, *worker_, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, texturePool);
+            map, *worker_, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, *texturePool_);
     }
 }
 
