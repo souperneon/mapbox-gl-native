@@ -1,7 +1,10 @@
 #include <mbgl/map/resource_loader.hpp>
 
+#include <mbgl/geometry/sprite_atlas.hpp>
 #include <mbgl/map/environment.hpp>
+#include <mbgl/map/map.hpp>
 #include <mbgl/map/source.hpp>
+#include <mbgl/map/sprite.hpp>
 #include <mbgl/style/style.hpp>
 #include <mbgl/util/texture_pool.hpp>
 #include <mbgl/util/worker.hpp>
@@ -54,15 +57,23 @@ void ResourceLoader::setAccessToken(const std::string& accessToken) {
 void ResourceLoader::update(Map& map,
                            GlyphAtlas& glyphAtlas,
                            GlyphStore& glyphStore,
-                           SpriteAtlas& spriteAtlas,
-                           util::ptr<Sprite> sprite) {
+                           SpriteAtlas& spriteAtlas) {
     if (!style_) {
         return;
     }
 
+    const float pixelRatio = map.getState().getPixelRatio();
+    if (!sprite_ || !sprite_->hasPixelRatio(pixelRatio)) {
+        sprite_ = Sprite::Create(style_->getSpriteURL(), pixelRatio);
+        sprite_->setObserver(this);
+
+        spriteAtlas.resize(pixelRatio);
+        spriteAtlas.setSprite(sprite_);
+    }
+
     for (const auto& source : style_->sources) {
         source->update(
-            map, *worker_, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, *texturePool_);
+            map, *worker_, style_, glyphAtlas, glyphStore, spriteAtlas, sprite_, *texturePool_);
     }
 }
 
@@ -71,6 +82,10 @@ void ResourceLoader::onSourceLoaded() {
 }
 
 void ResourceLoader::onTileLoaded() {
+    emitTileDataChanged();
+}
+
+void ResourceLoader::onSpriteLoaded() {
     emitTileDataChanged();
 }
 

@@ -43,8 +43,7 @@ bool SymbolBucket::hasIconData() const { return !icon.groups.empty(); }
 
 std::vector<SymbolFeature> SymbolBucket::processFeatures(const GeometryTileLayer& layer,
                                                          const FilterExpression& filter,
-                                                         GlyphStore &glyphStore,
-                                                         const Sprite &sprite) {
+                                                         GlyphStore &glyphStore) {
     const bool has_text = !layout.text.field.empty() && !layout.text.font.empty();
     const bool has_icon = !layout.icon.image.empty();
 
@@ -115,7 +114,6 @@ std::vector<SymbolFeature> SymbolBucket::processFeatures(const GeometryTileLayer
     }
 
     glyphStore.waitForGlyphRanges(layout.text.font, ranges);
-    sprite.waitUntilLoaded();
 
     return features;
 }
@@ -127,7 +125,7 @@ void SymbolBucket::addFeatures(const GeometryTileLayer& layer,
                                Sprite& sprite,
                                GlyphAtlas& glyphAtlas,
                                GlyphStore& glyphStore) {
-    const std::vector<SymbolFeature> features = processFeatures(layer, filter, glyphStore, sprite);
+    const std::vector<SymbolFeature> features = processFeatures(layer, filter, glyphStore);
 
     float horizontalAlign = 0.5;
     float verticalAlign = 0.5;
@@ -199,7 +197,6 @@ void SymbolBucket::addFeatures(const GeometryTileLayer& layer,
 
         // if feature has icon, get sprite atlas position
         if (feature.sprite.length()) {
-            sprite.waitUntilLoaded();
             image = spriteAtlas.getImage(feature.sprite, false);
 
             if (sprite.getSpritePosition(feature.sprite).sdf) {

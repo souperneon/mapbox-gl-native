@@ -24,9 +24,9 @@ SpritePosition::SpritePosition(uint16_t x_, uint16_t y_, uint16_t width_, uint16
       sdf(sdf_) {
 }
 
-util::ptr<Sprite> Sprite::Create(const std::string &base_url, float pixelRatio, Environment &env) {
+util::ptr<Sprite> Sprite::Create(const std::string &base_url, float pixelRatio) {
     util::ptr<Sprite> sprite(std::make_shared<Sprite>(Key(), base_url, pixelRatio));
-    sprite->load(env);
+    sprite->load(Environment::Get());
     return sprite;
 }
 
@@ -37,18 +37,19 @@ Sprite::Sprite(const Key &, const std::string& base_url, float pixelRatio_)
       jsonURL(base_url + (pixelRatio_ > 1 ? "@2x" : "") + ".json"),
       raster(),
       loadedImage(false),
-      loadedJSON(false),
-      future(promise.get_future()) {
+      loadedJSON(false) {
+}
+
+void Sprite::setObserver(Observer* observer_) {
+    assert(!observer);
+
+    observer = observer_;
 }
 
 bool Sprite::hasPixelRatio(float ratio) const {
     return pixelRatio == (ratio > 1 ? 2 : 1);
 }
 
-
-void Sprite::waitUntilLoaded() const {
-    future.wait();
-}
 
 Sprite::operator bool() const {
     return valid && isLoaded() && !pos.empty();
@@ -63,7 +64,6 @@ void Sprite::load(Environment &env) {
         // Treat a non-existent sprite as a successfully loaded empty sprite.
         loadedImage = true;
         loadedJSON = true;
-        promise.set_value();
         return;
     }
 
@@ -77,7 +77,7 @@ void Sprite::load(Environment &env) {
             Log::Warning(Event::Sprite, "Failed to load sprite info: %s", res.message.c_str());
         }
         sprite->loadedJSON = true;
-        sprite->complete();
+        sprite->emitSpriteLoadedIfComplete();
     });
 
     env.request({ Resource::Kind::Image, spriteURL }, [sprite](const Response &res) {
@@ -88,13 +88,13 @@ void Sprite::load(Environment &env) {
             Log::Warning(Event::Sprite, "Failed to load sprite image: %s", res.message.c_str());
         }
         sprite->loadedImage = true;
-        sprite->complete();
+        sprite->emitSpriteLoadedIfComplete();
     });
 }
 
-void Sprite::complete() {
-    if (loadedImage && loadedJSON) {
-        promise.set_value();
+void Sprite::emitSpriteLoadedIfComplete() {
+    if (isLoaded() && observer) {
+        observer->onSpriteLoaded();
     }
 }
 

@@ -185,8 +185,6 @@ private:
     void resize(uint16_t width, uint16_t height, float ratio = 1);
     void resize(uint16_t width, uint16_t height, float ratio, uint16_t fbWidth, uint16_t fbHeight);
 
-    util::ptr<Sprite> getSprite();
-
     // Checks if render thread needs to pause
     void checkForPause();
 
@@ -254,7 +252,6 @@ private:
     std::unique_ptr<GlyphAtlas> glyphAtlas;
     util::ptr<GlyphStore> glyphStore;
     std::unique_ptr<SpriteAtlas> spriteAtlas;
-    util::ptr<Sprite> sprite;
     std::unique_ptr<LineAtlas> lineAtlas;
     util::ptr<TexturePool> texturePool;
     std::unique_ptr<ResourceLoader> resourceLoader;

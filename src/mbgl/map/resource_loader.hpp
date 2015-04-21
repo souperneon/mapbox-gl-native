@@ -2,6 +2,7 @@
 #define MBGL_MAP_RESOURCE_LOADER
 
 #include <mbgl/map/source.hpp>
+#include <mbgl/map/sprite.hpp>
 #include <mbgl/util/noncopyable.hpp>
 #include <mbgl/util/ptr.hpp>
 
@@ -21,7 +22,7 @@ class Worker;
 // by the Style. The Source object currently owns all the tiles, thus this
 // class will notify its observers of any change on these tiles which will
 // ultimately cause a new rendering to be triggered.
-class ResourceLoader : public Source::Observer, private util::noncopyable {
+class ResourceLoader : public Source::Observer, public Sprite::Observer, private util::noncopyable {
 public:
     class Observer {
     public:
@@ -44,11 +45,19 @@ public:
 
     // Fetch the tiles needed by the current viewport and emit a signal when
     // a tile is ready so observers can render the tile.
-    void update(Map&, GlyphAtlas&, GlyphStore&, SpriteAtlas&, util::ptr<Sprite>);
+    void update(Map&, GlyphAtlas&, GlyphStore&, SpriteAtlas&);
+
+    // FIXME: There is probably a better place for this.
+    inline util::ptr<Sprite> getSprite() const {
+        return sprite_;
+    }
 
     // Source::Observer implementation.
     void onSourceLoaded();
     void onTileLoaded();
+
+    // Sprite::Observer implementation.
+    void onSpriteLoaded();
 
 private:
     void emitTileDataChanged();
@@ -57,6 +66,7 @@ private:
     std::unique_ptr<TexturePool> texturePool_;
     std::string accessToken_;
     util::ptr<Style> style_;
+    util::ptr<Sprite> sprite_;
     Observer* observer_;
 };
 

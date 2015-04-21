@@ -10,7 +10,6 @@
 #include <iosfwd>
 #include <string>
 #include <unordered_map>
-#include <future>
 
 namespace mbgl {
 
@@ -37,15 +36,23 @@ private:
     void load(Environment &env);
 
 public:
+    class Observer {
+    public:
+        virtual ~Observer() = default;
+
+        virtual void onSpriteLoaded() = 0;
+    };
+
+    static util::ptr<Sprite> Create(const std::string &base_url, float pixelRatio);
+
     Sprite(const Key &, const std::string& base_url, float pixelRatio);
-    static util::ptr<Sprite>
-    Create(const std::string &base_url, float pixelRatio, Environment &env);
+
+    void setObserver(Observer* observer);
 
     const SpritePosition &getSpritePosition(const std::string& name) const;
 
     bool hasPixelRatio(float ratio) const;
 
-    void waitUntilLoaded() const;
     bool isLoaded() const;
 
     operator bool() const;
@@ -60,9 +67,10 @@ public:
     std::unique_ptr<util::Image> raster;
 
 private:
+    void emitSpriteLoadedIfComplete();
+
     void parseJSON();
     void parseImage();
-    void complete();
 
 private:
     std::string body;
@@ -71,10 +79,7 @@ private:
     std::atomic<bool> loadedJSON;
     std::unordered_map<std::string, SpritePosition> pos;
     const SpritePosition empty;
-
-    std::promise<void> promise;
-    std::future<void> future;
-
+    Observer* observer;
 };
 
 }

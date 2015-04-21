@@ -90,7 +90,6 @@ Map::~Map() {
         "MapandMain");
 
     // Explicitly reset all pointers.
-    sprite.reset();
     glyphStore.reset();
     style.reset();
     painter.reset();
@@ -445,17 +444,6 @@ std::string Map::getStyleJSON() const {
     return data->getStyleInfo().json;
 }
 
-util::ptr<Sprite> Map::getSprite() {
-    const float pixelRatio = state.getPixelRatio();
-    const std::string &sprite_url = style->getSpriteURL();
-    if (!sprite || !sprite->hasPixelRatio(pixelRatio)) {
-        sprite = Sprite::Create(sprite_url, pixelRatio, *env);
-    }
-
-    return sprite;
-}
-
-
 #pragma mark - Size
 
 void Map::resize(uint16_t width, uint16_t height, float ratio) {
@@ -594,9 +582,9 @@ void Map::setDefaultPointAnnotationSymbol(const std::string& symbol) {
 
 double Map::getTopOffsetPixelsForAnnotationSymbol(const std::string& symbol) {
     assert(Environment::currentlyOn(ThreadType::Main));
+
     return invokeSyncTask([&] {
-        assert(sprite);
-        const SpritePosition pos = sprite->getSpritePosition(symbol);
+        const SpritePosition pos = resourceLoader->getSprite()->getSpritePosition(symbol);
         return -pos.height / pos.pixelRatio / 2;
     });
 }
@@ -712,8 +700,7 @@ Duration Map::getDefaultTransitionDuration() {
 void Map::updateTiles() {
     assert(Environment::currentlyOn(ThreadType::Map));
 
-    resourceLoader->update(*this, *glyphAtlas, *glyphStore,
-                           *spriteAtlas, getSprite());
+    resourceLoader->update(*this, *glyphAtlas, *glyphStore, *spriteAtlas);
 }
 
 void Map::update() {
@@ -750,7 +737,6 @@ void Map::reloadStyle() {
 void Map::loadStyleJSON(const std::string& json, const std::string& base) {
     assert(Environment::currentlyOn(ThreadType::Map));
 
-    sprite.reset();
     style = std::make_shared<Style>();
     style->base = base;
     style->loadJSON((const uint8_t *)json.c_str());
@@ -816,10 +802,6 @@ void Map::prepare() {
             u & static_cast<UpdateType>(Update::Zoom)) {
             style->recalculate(state.getNormalizedZoom(), now);
         }
-
-        // Allow the sprite atlas to potentially pull new sprite images if needed.
-        spriteAtlas->resize(state.getPixelRatio());
-        spriteAtlas->setSprite(getSprite());
 
         updateTiles();
     }
