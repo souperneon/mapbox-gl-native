@@ -29,7 +29,6 @@
 #include <mbgl/util/uv.hpp>
 #include <mbgl/util/mapbox.hpp>
 #include <mbgl/util/exception.hpp>
-#include <mbgl/util/worker.hpp>
 
 #include <algorithm>
 #include <iostream>
@@ -96,7 +95,6 @@ Map::~Map() {
     sprite.reset();
     glyphStore.reset();
     style.reset();
-    workers.reset();
     painter.reset();
     annotationManager.reset();
     lineAtlas.reset();
@@ -106,11 +104,6 @@ Map::~Map() {
     uv_run(env->loop, UV_RUN_DEFAULT);
 
     env->performCleanup();
-}
-
-Worker& Map::getWorker() {
-    assert(workers);
-    return *workers;
 }
 
 void Map::start(bool startPaused, Mode renderMode) {
@@ -131,10 +124,6 @@ void Map::start(bool startPaused, Mode renderMode) {
         // Remove all of these to make sure they are destructed in the correct thread.
         resourceLoader.reset();
         style.reset();
-
-        // It's now safe to destroy/join the workers since there won't be any more callbacks that
-        // could dispatch to the worker pool.
-        workers.reset();
 
         terminating = true;
 
@@ -281,8 +270,6 @@ void Map::run() {
 
     view.activate();
     view.discard();
-
-    workers = util::make_unique<Worker>(env->loop, 4);
 
     setup();
     prepare();
@@ -727,7 +714,7 @@ Duration Map::getDefaultTransitionDuration() {
 void Map::updateTiles() {
     assert(Environment::currentlyOn(ThreadType::Map));
 
-    resourceLoader->update(*this, getWorker(), *glyphAtlas, *glyphStore,
+    resourceLoader->update(*this, *glyphAtlas, *glyphStore,
                            *spriteAtlas, getSprite(), *texturePool);
 }
 

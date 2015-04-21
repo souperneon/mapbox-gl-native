@@ -3,13 +3,25 @@
 #include <mbgl/map/environment.hpp>
 #include <mbgl/map/source.hpp>
 #include <mbgl/style/style.hpp>
+#include <mbgl/util/worker.hpp>
 
 #include <cassert>
+#include <cstddef>
+
+namespace {
+
+const std::size_t threadPoolSize = 4;
+
+}
 
 namespace mbgl {
 
 ResourceLoader::ResourceLoader() : observer_(nullptr) {
     assert(Environment::currentlyOn(ThreadType::Map));
+
+    // The worker pool will reply to the Map thread main loop,
+    // so we have to make sure this object outlives the Map thread.
+    worker_ = util::make_unique<Worker>(Environment::Get().loop, 4);
 }
 
 ResourceLoader::~ResourceLoader() {
@@ -38,7 +50,6 @@ void ResourceLoader::setAccessToken(const std::string& accessToken) {
 }
 
 void ResourceLoader::update(Map& map,
-                           Worker& worker,
                            GlyphAtlas& glyphAtlas,
                            GlyphStore& glyphStore,
                            SpriteAtlas& spriteAtlas,
@@ -50,7 +61,7 @@ void ResourceLoader::update(Map& map,
 
     for (const auto& source : style_->sources) {
         source->update(
-            map, worker, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, texturePool);
+            map, *worker_, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, texturePool);
     }
 }
 
