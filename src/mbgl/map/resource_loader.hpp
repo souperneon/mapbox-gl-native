@@ -9,7 +9,13 @@
 
 namespace mbgl {
 
+class GlyphAtlas;
+class GlyphStore;
+class Map;
+class SpriteAtlas;
 class Style;
+class TexturePool;
+class Worker;
 
 // ResourceLoader is responsible for loading and updating the Source(s) owned
 // by the Style. The Source object currently owns all the tiles, thus this
@@ -35,6 +41,11 @@ public:
 
     // Set the access token to be used for loading the tile data.
     void setAccessToken(const std::string& accessToken);
+
+    // Fetch the tiles needed by the current viewport and emit a signal when
+    // a tile is ready so observers can render the tile.
+    void update(Map&, Worker&, GlyphAtlas&, GlyphStore&,
+                SpriteAtlas&, util::ptr<Sprite>, TexturePool&);
 
     // Source::Observer implementation.
     void onSourceLoaded();

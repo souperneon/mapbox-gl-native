@@ -726,11 +726,9 @@ Duration Map::getDefaultTransitionDuration() {
 
 void Map::updateTiles() {
     assert(Environment::currentlyOn(ThreadType::Map));
-    if (!style) return;
-    for (const auto& source : style->sources) {
-        source->update(*this, getWorker(), style, *glyphAtlas, *glyphStore,
-                               *spriteAtlas, getSprite(), *texturePool);
-    }
+
+    resourceLoader->update(*this, getWorker(), *glyphAtlas, *glyphStore,
+                           *spriteAtlas, getSprite(), *texturePool);
 }
 
 void Map::update() {

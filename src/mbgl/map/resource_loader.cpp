@@ -37,6 +37,23 @@ void ResourceLoader::setAccessToken(const std::string& accessToken) {
     accessToken_ = accessToken;
 }
 
+void ResourceLoader::update(Map& map,
+                           Worker& worker,
+                           GlyphAtlas& glyphAtlas,
+                           GlyphStore& glyphStore,
+                           SpriteAtlas& spriteAtlas,
+                           util::ptr<Sprite> sprite,
+                           TexturePool& texturePool) {
+    if (!style_) {
+        return;
+    }
+
+    for (const auto& source : style_->sources) {
+        source->update(
+            map, worker, style_, glyphAtlas, glyphStore, spriteAtlas, sprite, texturePool);
+    }
+}
+
 void ResourceLoader::onSourceLoaded() {
     emitTileDataChanged();
 }
