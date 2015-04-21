@@ -2,6 +2,7 @@
 #include <mbgl/map/environment.hpp>
 #include <mbgl/map/view.hpp>
 #include <mbgl/map/map_data.hpp>
+#include <mbgl/map/resource_loader.hpp>
 #include <mbgl/map/still_image.hpp>
 #include <mbgl/platform/platform.hpp>
 #include <mbgl/map/source.hpp>
@@ -128,6 +129,7 @@ void Map::start(bool startPaused, Mode renderMode) {
         assert(Environment::currentlyOn(ThreadType::Map));
 
         // Remove all of these to make sure they are destructed in the correct thread.
+        resourceLoader.reset();
         style.reset();
 
         // It's now safe to destroy/join the workers since there won't be any more callbacks that
@@ -266,6 +268,10 @@ void Map::run() {
     EnvironmentScope mapScope(*env, ThreadType::Map, "Map");
     assert(Environment::currentlyOn(ThreadType::Map));
     assert(mode != Mode::None);
+
+    resourceLoader.reset(new ResourceLoader());
+    resourceLoader->setAccessToken(getAccessToken());
+    resourceLoader->setObserver(this);
 
     if (mode == Mode::Continuous) {
         checkForPause();
@@ -409,6 +415,11 @@ void Map::terminate() {
     assert(painter);
     painter->terminate();
     view.deactivate();
+}
+
+void Map::onTileDataChanged() {
+    assert(Environment::currentlyOn(ThreadType::Map));
+    triggerUpdate();
 }
 
 #pragma mark - Setup
@@ -769,12 +780,7 @@ void Map::loadStyleJSON(const std::string& json, const std::string& base) {
     const std::string glyphURL = util::mapbox::normalizeGlyphsURL(style->glyph_url, getAccessToken());
     glyphStore->setURL(glyphURL);
 
-    for (const auto& source : style->sources) {
-        source->load(getAccessToken(), *env, [this]() {
-            assert(Environment::currentlyOn(ThreadType::Map));
-            triggerUpdate();
-        });
-    }
+    resourceLoader->setStyle(style);
 
     triggerUpdate(Update::Zoom);
 }

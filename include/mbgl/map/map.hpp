@@ -3,6 +3,7 @@
 
 #include <mbgl/map/transform.hpp>
 #include <mbgl/util/chrono.hpp>
+#include <mbgl/map/resource_loader.hpp>
 #include <mbgl/map/update.hpp>
 #include <mbgl/util/geo.hpp>
 #include <mbgl/util/projection.hpp>
@@ -44,7 +45,7 @@ class MapData;
 class Worker;
 class StillImage;
 
-class Map : private util::noncopyable {
+class Map : private util::noncopyable, public ResourceLoader::Observer {
     friend class View;
 
 public:
@@ -172,6 +173,9 @@ public:
     TimePoint getTime() const;
     inline AnnotationManager& getAnnotationManager() const { return *annotationManager; }
 
+    // ResourceLoader::Observer implementation.
+    virtual void onTileDataChanged() override;
+
 private:
     // Runs the map event loop. ONLY run this function when you want to get render a single frame
     // with this map object. It will *not* spawn a separate thread and instead block until the
@@ -256,6 +260,7 @@ private:
     util::ptr<Sprite> sprite;
     std::unique_ptr<LineAtlas> lineAtlas;
     util::ptr<TexturePool> texturePool;
+    std::unique_ptr<ResourceLoader> resourceLoader;
     std::unique_ptr<Painter> painter;
     std::unique_ptr<AnnotationManager> annotationManager;
 
