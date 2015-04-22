@@ -32,8 +32,6 @@
 
 namespace mbgl {
 
-enum class RenderPass : bool { Opaque, Translucent };
-
 class Transform;
 class Style;
 class Tile;

@@ -326,8 +326,13 @@ void LineBucket::addGeometry(const std::vector<Coordinate>& vertices) {
     }
 }
 
-void LineBucket::render(Painter &painter, const StyleLayer &layer_desc, const TileID &id,
-                        const mat4 &matrix) {
+void LineBucket::prepare() {
+}
+
+void LineBucket::render(Painter& painter,
+                        const StyleLayer& layer_desc,
+                        const TileID& id,
+                        const mat4& matrix) {
     painter.renderLine(*this, layer_desc, id, matrix);
 }
 
