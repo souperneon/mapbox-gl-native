@@ -192,6 +192,9 @@ std::forward_list<Tile *> Source::getLoadedTiles() const {
     return ptrs;
 }
 
+const std::vector<Tile*>& Source::getTiles() const {
+    return tilePtrs;
+}
 
 TileData::State Source::hasTile(const TileID& id) {
     auto it = tiles.find(id);
@@ -431,6 +434,8 @@ void Source::update(Map &map,
         }
     });
 
+    updateTilePtrs();
+
     updated = map.getTime();
 }
 
@@ -439,6 +444,14 @@ void Source::invalidateTiles(const std::vector<TileID>& ids) {
     for (auto& id : ids) {
         tiles.erase(id);
         tile_data.erase(id);
+    }
+    updateTilePtrs();
+}
+
+void Source::updateTilePtrs() {
+    tilePtrs.clear();
+    for (const auto& pair : tiles) {
+        tilePtrs.push_back(pair.second.get());
     }
 }
 
