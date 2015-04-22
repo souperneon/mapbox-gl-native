@@ -32,7 +32,7 @@ VectorTileData::~VectorTileData() {
 }
 
 void VectorTileData::parse() {
-    if (state != State::loaded) {
+    if (state != State::loaded && state != State::partial) {
         return;
     }
 
@@ -48,38 +48,67 @@ void VectorTileData::parse() {
         const VectorTile* vt = &vectorTile;
         TileParser parser(*vt, *this, style, glyphAtlas, glyphStore, spriteAtlas, sprite);
 
-        // Clear the style so that we don't have a cycle in the shared_ptr references.
-        style.reset();
-
         parser.parse();
+
+        if (state == State::obsolete) {
+            style.reset();
+            return;
+        }
+
+        if (parser.isPartialParse()) {
+            // If the tile was only partially parsed, we keep a reference
+            // to the style until we finally parse it completely.
+            state = State::partial;
+        } else {
+            style.reset();
+            state = State::parsed;
+        }
     } catch (const std::exception& ex) {
         Log::Error(Event::ParseTile, "Parsing [%d/%d/%d] failed: %s", id.z, id.x, id.y, ex.what());
         state = State::obsolete;
         return;
     }
-
-    if (state != State::obsolete) {
-        state = State::parsed;
-    }
 }
 
 void VectorTileData::render(Painter &painter, const StyleLayer &layer_desc, const mat4 &matrix) {
-    if (state == State::parsed && layer_desc.bucket) {
-        auto databucket_it = buckets.find(layer_desc.bucket->name);
-        if (databucket_it != buckets.end()) {
-            assert(databucket_it->second);
-            databucket_it->second->render(painter, layer_desc, id, matrix);
-        }
+    if (!ready() || !layer_desc.bucket) {
+        return;
     }
+
+    Bucket* bucket = getBucket(layer_desc.bucket->name);
+    if (!bucket) {
+        return;
+    }
+
+    bucket->render(painter, layer_desc, id, matrix);
 }
 
 bool VectorTileData::hasData(const StyleLayer &layer_desc) const {
-    if (state == State::parsed && layer_desc.bucket) {
-        auto databucket_it = buckets.find(layer_desc.bucket->name);
-        if (databucket_it != buckets.end()) {
-            assert(databucket_it->second);
-            return databucket_it->second->hasData();
-        }
+    if (!ready() || !layer_desc.bucket) {
+        return false;
     }
-    return false;
+
+    Bucket* bucket = getBucket(layer_desc.bucket->name);
+    if (!bucket) {
+        return false;
+    }
+
+    return bucket->hasData();
+}
+
+Bucket* VectorTileData::getBucket(const std::string& key) const {
+    std::lock_guard<std::mutex> lock(bucketsMutex);
+
+    auto it = buckets.find(key);
+    if (it == buckets.end())
+        return nullptr;
+
+    assert(it->second);
+    return it->second.get();
+}
+
+void VectorTileData::setBucket(const std::string& key, std::unique_ptr<Bucket> bucket) {
+    std::lock_guard<std::mutex> lock(bucketsMutex);
+
+    buckets[key] = std::move(bucket);
 }

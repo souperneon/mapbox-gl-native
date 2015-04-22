@@ -10,6 +10,7 @@
 
 #include <iosfwd>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 namespace mbgl {
@@ -43,6 +44,9 @@ public:
     void render(Painter &painter, const StyleLayer &layer_desc, const mat4 &matrix) override;
     bool hasData(StyleLayer const& layer_desc) const override;
 
+    Bucket* getBucket(const std::string& key) const;
+    void setBucket(const std::string& key, std::unique_ptr<Bucket> bucket);
+
 protected:
     // Holds the actual geometries in this tile.
     FillVertexBuffer fillVertexBuffer;
@@ -52,15 +56,21 @@ protected:
     LineElementsBuffer lineElementsBuffer;
     PointElementsBuffer pointElementsBuffer;
 
-    // Holds the buckets of this tile.
-    // They contain the location offsets in the buffers stored above
-    std::unordered_map<std::string, std::unique_ptr<Bucket>> buckets;
-
     GlyphAtlas& glyphAtlas;
     GlyphStore& glyphStore;
     SpriteAtlas& spriteAtlas;
     util::ptr<Sprite> sprite;
     util::ptr<Style> style;
+
+private:
+    // Contains all the Bucket objects for the tile. Bucket are render
+    // objects and they get added to this std::map<> by the workers doing
+    // the actual tile parsing as they get processed. Tiles partially
+    // parsed can get new buckets at any moment but are also fit for
+    // rendering. That said, access to this list needs locking unless
+    // the tile is completely parsed.
+    std::unordered_map<std::string, std::unique_ptr<Bucket>> buckets;
+    mutable std::mutex bucketsMutex;
 
 public:
     const float depth;

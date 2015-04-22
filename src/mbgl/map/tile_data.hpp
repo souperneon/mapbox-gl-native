@@ -29,9 +29,17 @@ public:
         initial,
         loading,
         loaded,
+        partial,
         parsed,
         obsolete
     };
+
+    // Tile data considered "Ready" can be used for rendering. Data in
+    // partial state is still waiting for network resources but can also
+    // be rendered, although layers will be missing.
+    inline static bool isReadyState(const State& state) {
+        return state == State::partial || state == State::parsed;
+    }
 
     TileData(const TileID&, const SourceInfo&);
     ~TileData();
@@ -42,7 +50,7 @@ public:
     const std::string toString() const;
 
     inline bool ready() const {
-        return state == State::parsed;
+        return isReadyState(state);
     }
 
     // Override this in the child class.

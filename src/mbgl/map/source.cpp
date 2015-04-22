@@ -177,7 +177,7 @@ void Source::render(Painter &painter, const StyleLayer &layer_desc) {
     gl::group group(std::string { "layer: " } + layer_desc.id);
     for (const auto& pair : tiles) {
         Tile &tile = *pair.second;
-        if (tile.data && tile.data->state == TileData::State::parsed) {
+        if (tile.data && tile.data->ready()) {
             painter.renderTileLayer(tile, layer_desc, tile.matrix);
         }
     }
@@ -221,16 +221,39 @@ TileData::State Source::addTile(Map &map, Worker &worker,
                                 const TileID &id) {
     const TileData::State state = hasTile(id);
 
-    if (state != TileData::State::invalid) {
+    if (state != TileData::State::invalid && state != TileData::State::partial) {
+        return state;
+    }
+
+    // We couldn't find the tile in the list. Create a new one.
+    // Try to find the associated TileData object.
+    const TileID normalized_id = id.normalized();
+
+    auto callback = std::bind(&Source::emitTileLoaded, this);
+    if (state == TileData::State::partial) {
+        if (!sprite->isLoaded()) {
+            return state;
+        }
+
+        util::ptr<TileData> data;
+
+        auto it = tile_data.find(normalized_id);
+        if (it != tile_data.end()) {
+            data = it->second.lock();
+            if (!data) {
+                data = cache.get(id.to_uint64());
+            }
+
+            if (data) {
+                data->reparse(worker, callback);
+            }
+        }
+
         return state;
     }
 
     auto pos = tiles.emplace(id, util::make_unique<Tile>(id));
     Tile& new_tile = *pos.first->second;
-
-    // We couldn't find the tile in the list. Create a new one.
-    // Try to find the associated TileData object.
-    const TileID normalized_id = id.normalized();
 
     auto it = tile_data.find(normalized_id);
     if (it != tile_data.end()) {
@@ -246,8 +269,6 @@ TileData::State Source::addTile(Map &map, Worker &worker,
     if (!new_tile.data) {
         new_tile.data = cache.get(normalized_id.to_uint64());
     }
-
-    auto callback = std::bind(&Source::emitTileLoaded, this);
 
     if (!new_tile.data) {
         // If we don't find working tile data, we're just going to load it.
@@ -319,7 +340,7 @@ bool Source::findLoadedChildren(const TileID& id, int32_t maxCoveringZoom, std::
     auto ids = id.children(z + 1);
     for (const auto& child_id : ids) {
         const TileData::State state = hasTile(child_id);
-        if (state == TileData::State::parsed) {
+        if (TileData::isReadyState(state)) {
             retain.emplace_front(child_id);
         } else {
             complete = false;
@@ -345,7 +366,7 @@ bool Source::findLoadedParent(const TileID& id, int32_t minCoveringZoom, std::fo
     for (int32_t z = id.z - 1; z >= minCoveringZoom; --z) {
         const TileID parent_id = id.parent(z);
         const TileData::State state = hasTile(parent_id);
-        if (state == TileData::State::parsed) {
+        if (TileData::isReadyState(state)) {
             retain.emplace_front(parent_id);
             return true;
         }
@@ -382,7 +403,7 @@ void Source::update(Map &map,
         const TileData::State state = addTile(map, worker, style, glyphAtlas, glyphStore,
                                               spriteAtlas, sprite, texturePool, id);
 
-        if (state != TileData::State::parsed) {
+        if (!TileData::isReadyState(state)) {
             // The tile we require is not yet loaded. Try to find a parent or
             // child tile that we already have.
 
