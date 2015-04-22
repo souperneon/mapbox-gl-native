@@ -25,9 +25,5 @@ void RasterTileData::parse() {
 }
 
 Bucket* RasterTileData::getBucket(StyleLayer const&) {
-    if (bucket.hasData()) {
-        return &bucket;
-    } else {
-        return nullptr;
-    }
+    return &bucket;
 }
