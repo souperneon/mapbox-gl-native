@@ -56,6 +56,18 @@ class LayerDescription;
 class RasterTileData;
 struct ClipID;
 
+struct RenderItem {
+    inline RenderItem(const StyleLayer& layer_,
+                      const Tile* tile_ = nullptr,
+                      Bucket* bucket_ = nullptr)
+        : tile(tile_), bucket(bucket_), layer(layer_) {
+    }
+
+    const Tile* const tile;
+    Bucket* const bucket;
+    const StyleLayer& layer;
+};
+
 class Painter : private util::noncopyable {
 public:
     Painter(SpriteAtlas&, GlyphAtlas&, LineAtlas&);
@@ -78,11 +90,6 @@ public:
     void render(const Style& style,
                 TransformState state,
                 TimePoint time);
-
-    void renderLayer(const StyleLayer&);
-
-    // Renders a particular layer from a tile.
-    void renderTileLayer(const Tile& tile, const StyleLayer &layer_desc, const mat4 &matrix);
 
     // Renders debug information for a tile.
     void renderTileDebug(const Tile& tile);
@@ -135,6 +142,8 @@ private:
     void setupShaders();
     void deleteShaders();
     mat4 translatedMatrix(const mat4& matrix, const std::array<float, 2> &translation, const TileID &id, TranslateAnchorType anchor);
+
+    std::vector<RenderItem> determineRenderOrder(const Style& style);
 
     void prepareTile(const Tile& tile);
 
