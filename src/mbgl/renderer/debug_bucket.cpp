@@ -12,6 +12,9 @@ DebugBucket::DebugBucket(DebugFontBuffer& fontBuffer_)
 }
 
 void DebugBucket::prepare() {
+    fontBuffer.upload();
+
+    renderPass = RenderPass::Translucent;
 }
 
 void DebugBucket::render(Painter& painter, const StyleLayer&, const TileID&, const mat4& matrix) {

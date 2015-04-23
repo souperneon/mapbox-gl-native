@@ -9,6 +9,8 @@
 #include <mbgl/util/constants.hpp>
 #include <mbgl/util/mat3.hpp>
 #include <mbgl/geometry/sprite_atlas.hpp>
+#include <mbgl/geometry/line_atlas.hpp>
+#include <mbgl/geometry/glyph_atlas.hpp>
 #include <mbgl/map/source.hpp>
 #include <mbgl/map/tile.hpp>
 
@@ -219,16 +221,33 @@ void Painter::prepareTile(const Tile& tile) {
 void Painter::render(const Style& style, TransformState state_, TimePoint time) {
     state = state_;
 
-    clear();
-    resize();
-    changeMatrix();
-
     std::set<Source*> sources;
     for (const auto& source : style.sources) {
         if (source->enabled) {
             sources.insert(source.get());
         }
     }
+
+    // - PREPARATION PASS --------------------------------------------------------------------------
+    // Uploads all required buffers and images before we do any actual rendering.
+
+    // Figure out what buckets we have to draw and what order we have to draw them in.
+    const auto order = determineRenderOrder(style);
+
+    tileStencilBuffer.upload();
+    tileBorderBuffer.upload();
+    spriteAtlas.upload();
+    lineAtlas.upload();
+    glyphAtlas.upload();
+
+    for (const auto& item : order) {
+        if (item.bucket && item.bucket->hasRenderPass(RenderPass::Prepare)) {
+            item.bucket->prepare();
+        }
+    }
+
+    // - CLIPPING MASKS ----------------------------------------------------------------------------
+    // Draws the clipping masks to the stencil buffer.
 
     // Update all clipping IDs.
     ClipIDGenerator generator;
@@ -237,6 +256,10 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
         source->updateMatrices(projMatrix, state);
     }
 
+    clear();
+    resize();
+    changeMatrix();
+
     drawClippingMasks(sources);
 
     frameHistory.record(time, state.getNormalizedZoom());
@@ -244,15 +267,12 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
     // Actually render the layers
     if (debug::renderTree) { Log::Info(Event::Render, "{"); indent++; }
 
-    // Figure out what buckets we have to draw and what order we have to draw them in.
-    const auto order = determineRenderOrder(style);
 
     // TODO: Correctly compute the number of layers recursively beforehand.
     const float strata_thickness = 1.0f / (order.size() + 1);
 
-    // - FIRST PASS ------------------------------------------------------------
-    // Render everything top-to-bottom by using reverse iterators. Render opaque
-    // objects first.
+    // - OPAQUE PASS -------------------------------------------------------------------------------
+    // Render everything top-to-bottom by using reverse iterators. Render opaque objects first.
 
     if (debug::renderTree) {
         Log::Info(Event::Render, "%*s%s", indent++ * 4, "", "OPAQUE {");
@@ -262,9 +282,11 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
     for (auto it = order.rbegin(), end = order.rend(); it != end; ++it, ++i) {
         const auto& item = *it;
         if (item.bucket && item.tile) {
-            setStrata(i * strata_thickness);
-            prepareTile(*item.tile);
-            item.bucket->render(*this, item.layer, item.tile->id, item.tile->matrix);
+            if (item.bucket->hasRenderPass(RenderPass::Opaque)) {
+                setStrata(i * strata_thickness);
+                prepareTile(*item.tile);
+                item.bucket->render(*this, item.layer, item.tile->id, item.tile->matrix);
+            }
         } else {
             renderBackground(item.layer);
         }
@@ -273,9 +295,9 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
         Log::Info(Event::Render, "%*s%s", --indent * 4, "", "}");
     }
 
-    // - SECOND PASS -----------------------------------------------------------
-    // Make a second pass, rendering translucent objects. This time, we render
-    // bottom-to-top.
+    // - TRANSLUCENT PASS --------------------------------------------------------------------------
+    // Make a second pass, rendering translucent objects. This time, we render bottom-to-top.
+
     if (debug::renderTree) {
         Log::Info(Event::Render, "%*s%s", indent++ * 4, "", "TRANSLUCENT {");
     }
@@ -284,9 +306,11 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
     for (auto it = order.begin(), end = order.end(); it != end; ++it, --i) {
         const auto& item = *it;
         if (item.bucket && item.tile) {
-            setStrata(i * strata_thickness);
-            prepareTile(*item.tile);
-            item.bucket->render(*this, item.layer, item.tile->id, item.tile->matrix);
+            if (item.bucket->hasRenderPass(RenderPass::Translucent)) {
+                setStrata(i * strata_thickness);
+                prepareTile(*item.tile);
+                item.bucket->render(*this, item.layer, item.tile->id, item.tile->matrix);
+            }
         }
     }
     if (debug::renderTree) {
@@ -302,6 +326,11 @@ void Painter::render(const Style& style, TransformState state_, TimePoint time) 
     for (const auto& source : sources) {
         source->finishRender(*this);
     }
+
+    // TODO: Find a better way to unbind VAOs after we're done with them without introducing
+    // unnecessary bind(0)/bind(N) sequences.
+    MBGL_CHECK_ERROR(glBindTexture(GL_TEXTURE_2D, 0));
+    MBGL_CHECK_ERROR(gl::BindVertexArray(0));
 }
 
 std::vector<RenderItem> Painter::determineRenderOrder(const Style& style) {
