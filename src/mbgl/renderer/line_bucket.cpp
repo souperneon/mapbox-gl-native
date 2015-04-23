@@ -326,13 +326,13 @@ void LineBucket::addGeometry(const std::vector<Coordinate>& vertices) {
     }
 }
 
-void LineBucket::prepare() {
+void LineBucket::upload() {
     vertexBuffer.upload();
     triangleElementsBuffer.upload();
     pointElementsBuffer.upload();
 
     // From now on, we're only going to render during the translucent pass.
-    renderPass = RenderPass::Translucent;
+    uploaded = true;
 }
 
 void LineBucket::render(Painter& painter,

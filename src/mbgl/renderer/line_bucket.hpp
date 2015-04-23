@@ -32,7 +32,7 @@ public:
                PointElementsBuffer &pointElementsBuffer);
     ~LineBucket() override;
 
-    void prepare() override;
+    void upload() override;
     void render(Painter&, const StyleLayer&, const TileID&, const mat4&) override;
     bool hasData() const;
 
