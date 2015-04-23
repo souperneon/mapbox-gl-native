@@ -28,8 +28,10 @@ namespace algo = boost::algorithm;
 
 namespace mbgl {
 
-DefaultFileSource::Impl::Impl(uv_loop_t*, FileCache* cache_, const std::string& root)
-    : assetRoot(root.empty() ? platform::assetRoot() : root), cache(cache_) {
+DefaultFileSource::Impl::Impl(uv_loop_t* loop_, FileCache* cache_, const std::string& root)
+    : assetRoot(root.empty() ? platform::assetRoot() : root),
+      loop(loop_),
+      cache(cache_) {
 }
 
 DefaultFileSource::DefaultFileSource(FileCache* cache, const std::string& root)
@@ -60,7 +62,7 @@ Request* DefaultFileSource::request(const Resource& resource,
 
     // This function can be called from any thread. Make sure we're executing the actual call in the
     // file source loop by sending it over the queue.
-    thread->invoke(&Impl::add, std::move(req), thread->get());
+    thread->invoke(&Impl::add, std::move(req));
 
     return req;
 }
@@ -81,7 +83,7 @@ void DefaultFileSource::abort(const Environment &env) {
     thread->invoke(&Impl::abort, std::ref(env));
 }
 
-void DefaultFileSource::Impl::add(Request* req, uv_loop_t* loop) {
+void DefaultFileSource::Impl::add(Request* req) {
     const Resource &resource = req->resource;
 
     // We're adding a new Request.
@@ -104,8 +106,8 @@ void DefaultFileSource::Impl::add(Request* req, uv_loop_t* loop) {
         } else {
             // Otherwise, first check the cache for existing data so that we can potentially
             // revalidate the information without having to redownload everything.
-            cache->get(resource, [this, resource, loop](std::unique_ptr<Response> response) {
-                processResult(resource, std::move(response), loop);
+            cache->get(resource, [this, resource](std::unique_ptr<Response> response) {
+                processResult(resource, std::move(response));
             });
         }
     }
@@ -129,7 +131,7 @@ void DefaultFileSource::Impl::cancel(Request* req) {
     req->destruct();
 }
 
-void DefaultFileSource::Impl::processResult(const Resource& resource, std::shared_ptr<const Response> response, uv_loop_t* loop) {
+void DefaultFileSource::Impl::processResult(const Resource& resource, std::shared_ptr<const Response> response) {
     SharedRequestBase *sharedRequest = find(resource);
     if (sharedRequest) {
         if (response) {

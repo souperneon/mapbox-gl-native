@@ -20,17 +20,18 @@ public:
                 std::shared_ptr<const Response> response, FileCache::Hint hint);
     SharedRequestBase *find(const Resource &resource);
 
-    void add(Request* request, uv_loop_t* loop);
+    void add(Request* request);
     void cancel(Request* request);
     void abort(const Environment& env);
 
     const std::string assetRoot;
 
 private:
-    void processResult(const Resource& resource, std::shared_ptr<const Response> response, uv_loop_t* loop);
+    void processResult(const Resource& resource, std::shared_ptr<const Response> response);
 
     std::unordered_map<Resource, SharedRequestBase *, Resource::Hash> pending;
-    FileCache *cache = nullptr;
+    uv_loop_t* loop = nullptr;
+    FileCache* cache = nullptr;
 };
 
 }
